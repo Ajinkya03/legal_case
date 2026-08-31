@@ -1,0 +1,4 @@
+import { Schema, model, Document, Types } from 'mongoose';
+export interface IDocument extends Document { caseId: Types.ObjectId; hearingId?: Types.ObjectId; fileName: string; fileType: string; fileSizeBytes: number; storageUrl: string; uploadedBy: Types.ObjectId; category?: string; isDeleted: boolean; }
+const schema = new Schema<IDocument>({ caseId: { type: Schema.Types.ObjectId, ref: 'Case', required: true }, hearingId: { type: Schema.Types.ObjectId, ref: 'Hearing' }, fileName: { type: String, required: true }, fileType: { type: String, required: true }, fileSizeBytes: { type: Number, required: true }, storageUrl: { type: String, required: true }, uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }, category: String, isDeleted: { type: Boolean, default: false } }, { timestamps: true });
+export const DocumentModel = model<IDocument>('Document', schema);

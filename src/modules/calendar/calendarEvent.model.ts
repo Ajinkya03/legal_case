@@ -1,0 +1,4 @@
+import { Schema, model, Document, Types } from 'mongoose';
+export interface ICalendarEvent extends Document { title: string; type: string; date: Date; time?: string; caseId?: Types.ObjectId; hearingId?: Types.ObjectId; description?: string; createdBy: Types.ObjectId; }
+const schema = new Schema<ICalendarEvent>({ title: { type: String, required: true }, type: { type: String, enum: ['Hearing', 'Deadline', 'Meeting', 'Holiday', 'Custom'], required: true }, date: { type: Date, required: true }, time: String, caseId: { type: Schema.Types.ObjectId, ref: 'Case' }, hearingId: { type: Schema.Types.ObjectId, ref: 'Hearing' }, description: String, createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true } }, { timestamps: true });
+export const CalendarEvent = model<ICalendarEvent>('CalendarEvent', schema);

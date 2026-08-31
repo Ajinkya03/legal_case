@@ -1,0 +1,5 @@
+import { Schema, model, Document, Types } from 'mongoose';
+export interface IHearing extends Document { caseId: Types.ObjectId; hearingDate: Date; hearingOutcome?: string; courtObservation?: string; expectedAction?: string; nextHearingDate?: Date; responsiblePerson: Types.ObjectId; status: string; isDeleted: boolean; }
+const schema = new Schema<IHearing>({ caseId: { type: Schema.Types.ObjectId, ref: 'Case', required: true }, hearingDate: { type: Date, required: true }, hearingOutcome: String, courtObservation: String, expectedAction: String, nextHearingDate: Date, responsiblePerson: { type: Schema.Types.ObjectId, ref: 'User', required: true }, status: { type: String, enum: ['Completed', 'Upcoming', 'Adjourned', 'Cancelled'], default: 'Upcoming' }, isDeleted: { type: Boolean, default: false } }, { timestamps: true });
+schema.index({ hearingDate: 1, status: 1 });
+export const Hearing = model<IHearing>('Hearing', schema);
