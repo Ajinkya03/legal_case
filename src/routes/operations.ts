@@ -1069,12 +1069,16 @@ router.post('/users/admin', authorize('user:manage'), async (req, res, next) => 
     }
 
     const created = await Promise.all(items.map(async (item, index) => {
-      const name = String(item.name || `Admin ${index + 1}`);
-      const username = String(item.username || `admin-${Date.now()}-${index + 1}`);
-      const email = String(item.email || `${username}@example.com`);
-      const password = String(item.password || env.SEED_ADMIN_PASSWORD);
+      const name = String(item?.name || '').trim();
+      const username = String(item?.username || '').trim().toLowerCase();
+      const email = String(item?.email || '').trim().toLowerCase();
+      const password = String(item?.password || '');
 
-      const exists = await User.findOne({ $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }], isDeleted: false });
+      if (!name || !username || !email || !password) {
+        throw new ApiError(400, `Name, username, email and password are required for admin user ${index + 1}`);
+      }
+
+      const exists = await User.findOne({ $or: [{ email }, { username }], isDeleted: false });
       if (exists) {
         throw new ApiError(409, `User with email '${email}' or username '${username}' already exists`);
       }
@@ -1082,8 +1086,8 @@ router.post('/users/admin', authorize('user:manage'), async (req, res, next) => 
       const passwordHash = await bcrypt.hash(password, 12);
       const user = await User.create({
         name,
-        email: email.toLowerCase(),
-        username: username.toLowerCase(),
+        email,
+        username,
         passwordHash,
         role: adminRole._id,
         status: 'active',
