@@ -6,7 +6,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
-import { corsOrigins } from './config/env';
+import { corsOrigins, env } from './config/env';
 import apiRoutes from './routes';
 import { errorHandler, notFound } from './middleware/errorHandler';
 import { openApiDocument } from './config/swagger';
@@ -15,7 +15,23 @@ import { isDatabaseConnected } from './config/database';
 const app = express();
 app.set('trust proxy', 1);
 app.use(helmet());
-app.use(cors({ origin: corsOrigins, credentials: true }));
+app.use(
+	cors({
+		origin: (origin, callback) => {
+			const isLocalDevelopmentOrigin =
+				env.NODE_ENV === 'development' &&
+				/^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin ?? '');
+
+			if (!origin || corsOrigins.includes(origin) || isLocalDevelopmentOrigin) {
+				callback(null, true);
+				return;
+			}
+
+			callback(new Error('CORS origin not allowed'));
+		},
+		credentials: true
+	})
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());

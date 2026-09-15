@@ -239,7 +239,33 @@ export const openApiDocument = {
         ],
         responses: { '200': { description: 'Cases list returned' } }
       },
-      post: { tags: ['Cases'], security: [{ bearerAuth: [] }] }
+      post: {
+        tags: ['Cases'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'caseType', 'court', 'location', 'clientName', 'status'],
+                properties: {
+                  title: { type: 'string', example: 'State vs. Johnson' },
+                  caseType: { type: 'string', example: 'Civil' },
+                  court: { type: 'string', example: 'High Court' },
+                  location: { type: 'string', example: 'Nairobi' },
+                  clientName: { type: 'string', example: 'John Johnson' },
+                  status: { type: 'string', example: 'Open' },
+                  priority: { type: 'string', example: 'High' },
+                  filingDate: { type: 'string', format: 'date', example: '2026-09-15' },
+                  description: { type: 'string', example: 'Commercial dispute regarding service contract' }
+                }
+              }
+            }
+          }
+        },
+        responses: { '201': { description: 'Case created' } }
+      }
     },
     '/cases/export/excel': {
       get: {
@@ -268,6 +294,26 @@ export const openApiDocument = {
         tags: ['Cases'],
         summary: 'Update case',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', example: 'State vs. Johnson' },
+                  caseType: { type: 'string', example: 'Civil' },
+                  court: { type: 'string', example: 'High Court' },
+                  location: { type: 'string', example: 'Nairobi' },
+                  clientName: { type: 'string', example: 'John Johnson' },
+                  status: { type: 'string', example: 'Open' },
+                  priority: { type: 'string', example: 'High' },
+                  description: { type: 'string', example: 'Updated dispute details' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Case updated' } }
       },
       delete: {
@@ -282,6 +328,20 @@ export const openApiDocument = {
         tags: ['Cases'],
         summary: 'Update case status',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['status'],
+                properties: {
+                  status: { type: 'string', example: 'Closed' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Status updated' } }
       }
     },
@@ -296,6 +356,23 @@ export const openApiDocument = {
         tags: ['Cases'],
         summary: 'Add timeline event',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['type', 'description'],
+                properties: {
+                  type: { type: 'string', example: 'Hearing' },
+                  description: { type: 'string', example: 'Filed preliminary objection' },
+                  date: { type: 'string', format: 'date-time', example: '2026-09-15T10:00:00.000Z' },
+                  userId: { type: 'string', example: '64f1b2c3d9e123456789abcd' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Timeline event added' } }
       }
     },
@@ -318,6 +395,26 @@ export const openApiDocument = {
         tags: ['Documents'],
         summary: 'Upload one or more files to a case',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['files'],
+                properties: {
+                  files: {
+                    type: 'array',
+                    items: { type: 'string', format: 'binary' },
+                    description: 'Files to upload'
+                  },
+                  category: { type: 'string', example: 'Petition' },
+                  description: { type: 'string', example: 'Filed petition annexures' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Files uploaded' } }
       }
     },
@@ -348,6 +445,24 @@ export const openApiDocument = {
         tags: ['Hearings'],
         summary: 'Create a hearing for a case',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'hearingDate', 'status'],
+                properties: {
+                  title: { type: 'string', example: 'Pretrial Hearing' },
+                  hearingDate: { type: 'string', format: 'date-time', example: '2026-09-20T09:00:00.000Z' },
+                  status: { type: 'string', example: 'Scheduled' },
+                  judge: { type: 'string', example: 'Justice Wambua' },
+                  location: { type: 'string', example: 'Courtroom 3' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Hearing created' } }
       }
     },
@@ -377,6 +492,23 @@ export const openApiDocument = {
         tags: ['Hearings'],
         summary: 'Update hearing',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', example: 'Pretrial Hearing' },
+                  hearingDate: { type: 'string', format: 'date-time', example: '2026-09-20T09:00:00.000Z' },
+                  status: { type: 'string', example: 'Completed' },
+                  judge: { type: 'string', example: 'Justice Wambua' },
+                  location: { type: 'string', example: 'Courtroom 3' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Hearing updated' } }
       },
       delete: {
@@ -489,6 +621,19 @@ export const openApiDocument = {
         tags: ['Notifications'],
         summary: 'Mark a notification as read',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  read: { type: 'boolean', example: true }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Notification marked as read' } }
       }
     },
@@ -517,6 +662,24 @@ export const openApiDocument = {
         tags: ['Calendar'],
         summary: 'Create a custom calendar event',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'start', 'end'],
+                properties: {
+                  title: { type: 'string', example: 'Client Meeting' },
+                  start: { type: 'string', format: 'date-time', example: '2026-09-15T09:00:00.000Z' },
+                  end: { type: 'string', format: 'date-time', example: '2026-09-15T10:00:00.000Z' },
+                  type: { type: 'string', example: 'meeting' },
+                  notes: { type: 'string', example: 'Discuss case strategy' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Calendar event created' } }
       }
     },
@@ -525,6 +688,23 @@ export const openApiDocument = {
         tags: ['Calendar'],
         summary: 'Update custom calendar event',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', example: 'Client Meeting' },
+                  start: { type: 'string', format: 'date-time', example: '2026-09-15T09:00:00.000Z' },
+                  end: { type: 'string', format: 'date-time', example: '2026-09-15T10:00:00.000Z' },
+                  type: { type: 'string', example: 'meeting' },
+                  notes: { type: 'string', example: 'Discuss settlement options' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Calendar event updated' } }
       },
       delete: {
@@ -545,6 +725,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Update general settings',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  organizationName: { type: 'string', example: 'Legal Case MIS' },
+                  timezone: { type: 'string', example: 'UTC' },
+                  dateFormat: { type: 'string', example: 'DD/MM/YYYY' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'General settings updated' } }
       }
     },
@@ -559,6 +754,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Update display settings',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  theme: { type: 'string', example: 'light' },
+                  density: { type: 'string', example: 'comfortable' },
+                  compactSidebar: { type: 'boolean', example: false }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Display settings updated' } }
       }
     },
@@ -573,6 +783,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Update notification settings',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  emailAlerts: { type: 'boolean', example: true },
+                  smsAlerts: { type: 'boolean', example: false },
+                  inAppAlerts: { type: 'boolean', example: true }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Notification settings updated' } }
       }
     },
@@ -587,6 +812,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Update security settings',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  sessionTimeoutMinutes: { type: 'integer', example: 30 },
+                  requireMfa: { type: 'boolean', example: true },
+                  passwordPolicy: { type: 'string', example: 'Strong' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Security settings updated' } }
       }
     },
@@ -601,6 +841,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Update integration settings',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  emailProvider: { type: 'string', example: 'sendgrid' },
+                  smtpHost: { type: 'string', example: 'smtp.example.com' },
+                  enabled: { type: 'boolean', example: true }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Integration settings updated' } }
       }
     },
@@ -609,6 +864,20 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Trigger backup export',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  includeFiles: { type: 'boolean', example: true },
+                  label: { type: 'string', example: 'nightly-backup' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Backup created' } }
       }
     },
@@ -617,6 +886,21 @@ export const openApiDocument = {
         tags: ['Settings'],
         summary: 'Restore system from backup file',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['fileName'],
+                properties: {
+                  fileName: { type: 'string', example: 'backup-2026-09-14.zip' },
+                  overwrite: { type: 'boolean', example: false }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Restore completed' } }
       }
     },
@@ -648,6 +932,22 @@ export const openApiDocument = {
         tags: ['Users'],
         summary: 'Create a role',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'Standard User' },
+                  permissions: { type: 'array', items: { type: 'string' }, example: ['case:read', 'user:read'] },
+                  isSystemRole: { type: 'boolean', example: false }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Role created' } }
       }
     },
@@ -656,6 +956,21 @@ export const openApiDocument = {
         tags: ['Users'],
         summary: 'Update role',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Senior Advocate' },
+                  permissions: { type: 'array', items: { type: 'string' }, example: ['case:read', 'case:update'] },
+                  isSystemRole: { type: 'boolean', example: false }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'Role updated' } }
       },
       delete: {
@@ -676,7 +991,64 @@ export const openApiDocument = {
         tags: ['Users'],
         summary: 'Create a user',
         security: [{ bearerAuth: [] }],
-        responses: { '201': { description: 'User created' } }
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'email', 'username'],
+                properties: {
+                  name: { type: 'string', example: 'John Doe' },
+                  email: { type: 'string', format: 'email', example: 'john@example.com' },
+                  username: { type: 'string', example: 'johndoe' },
+                  password: { type: 'string', format: 'password', example: 'Welcome@123' },
+                  role: { type: 'string', example: 'Standard User' },
+                  designation: { type: 'string', example: 'Lawyer' },
+                  phone: { type: 'string', example: '1234567890' },
+                  status: { type: 'string', enum: ['active', 'inactive'], example: 'active' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': {
+            description: 'User created',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        _id: { type: 'string', example: '64f1b2c3d9e123456789abcd' },
+                        name: { type: 'string', example: 'John Doe' },
+                        email: { type: 'string', example: 'john@example.com' },
+                        username: { type: 'string', example: 'johndoe' },
+                        designation: { type: 'string', example: 'Lawyer' },
+                        phone: { type: 'string', example: '1234567890' },
+                        status: { type: 'string', example: 'active' },
+                        role: {
+                          type: 'object',
+                          properties: {
+                            _id: { type: 'string', example: '64f1b2c3d9e123456789abce' },
+                            name: { type: 'string', example: 'Standard User' },
+                            permissions: { type: 'array', items: { type: 'string' } }
+                          }
+                        },
+                        createdAt: { type: 'string', format: 'date-time', example: '2026-09-15T10:00:00.000Z' },
+                        updatedAt: { type: 'string', format: 'date-time', example: '2026-09-15T10:00:00.000Z' }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     '/users/{id}': {
@@ -690,6 +1062,26 @@ export const openApiDocument = {
         tags: ['Users'],
         summary: 'Update user',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'John Doe' },
+                  email: { type: 'string', format: 'email', example: 'john@example.com' },
+                  username: { type: 'string', example: 'johndoe' },
+                  password: { type: 'string', format: 'password', example: 'Welcome@123' },
+                  role: { type: 'string', example: 'Standard User' },
+                  designation: { type: 'string', example: 'Lawyer' },
+                  phone: { type: 'string', example: '1234567890' },
+                  status: { type: 'string', enum: ['active', 'inactive'], example: 'active' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'User updated' } }
       },
       delete: {
@@ -704,6 +1096,20 @@ export const openApiDocument = {
         tags: ['Users'],
         summary: 'Update user status',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['status'],
+                properties: {
+                  status: { type: 'string', enum: ['active', 'inactive'], example: 'inactive' }
+                }
+              }
+            }
+          }
+        },
         responses: { '200': { description: 'User status updated' } }
       }
     },
@@ -718,6 +1124,23 @@ export const openApiDocument = {
         tags: ['Lookups'],
         summary: 'Create a court',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'High Court' },
+                  location: { type: 'string', example: 'Nairobi' },
+                  district: { type: 'string', example: 'Nairobi County' },
+                  state: { type: 'string', example: 'Nairobi' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Court created' } }
       }
     },
@@ -732,6 +1155,22 @@ export const openApiDocument = {
         tags: ['Lookups'],
         summary: 'Create a location',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'Nairobi' },
+                  district: { type: 'string', example: 'Nairobi County' },
+                  state: { type: 'string', example: 'Nairobi' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Location created' } }
       }
     },
@@ -833,6 +1272,23 @@ export const openApiDocument = {
         tags: ['Reports'],
         summary: 'Build and save a custom report',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name', 'type'],
+                properties: {
+                  name: { type: 'string', example: 'Open Cases Report' },
+                  type: { type: 'string', example: 'case-summary' },
+                  filters: { type: 'object', example: { status: 'Open', priority: 'High' } },
+                  description: { type: 'string', example: 'Report for all high-priority open matters' }
+                }
+              }
+            }
+          }
+        },
         responses: { '201': { description: 'Custom report created' } }
       }
     },
