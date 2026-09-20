@@ -50,11 +50,14 @@ export async function getCase(id: string, userId: string, permissions: string[])
 export async function createCase(input: Partial<ICase>, userId: string) {
   const year = new Date().getFullYear();
   const count = await Case.countDocuments({ createdAt: { $gte: new Date(`${year}-01-01`) } });
+  const caseInput = input as Partial<ICase> & { assignedPersonId?: Types.ObjectId | string; keywords?: string[] };
   const created = await Case.create({
-    ...input,
+    ...caseInput,
+    assignedPerson: caseInput.assignedPerson ?? caseInput.assignedPersonId ?? userId,
+    tags: caseInput.tags ?? caseInput.keywords ?? [],
+    keywords: caseInput.keywords ?? caseInput.tags ?? [],
     caseId: `LC-${year}-${String(count + 1).padStart(4, '0')}`,
     createdBy: new Types.ObjectId(userId),
-    assignedPerson: input.assignedPerson ?? userId,
     timeline: [{
       type: 'system',
       description: 'Case created',
@@ -66,11 +69,22 @@ export async function createCase(input: Partial<ICase>, userId: string) {
 }
 
 export async function updateCase(id: string, userId: string, updates: Partial<ICase>) {
-  const { _id, isDeleted, createdBy, createdAt, updatedAt, ...safeUpdates } = updates;
+  const updateInput = updates as Partial<ICase> & { assignedPersonId?: Types.ObjectId | string };
+  const { _id, isDeleted, createdBy, createdAt, updatedAt, assignedPersonId, ...safeUpdates } = updateInput;
+  const normalizedUpdates: Record<string, unknown> = { ...safeUpdates };
+  if (assignedPersonId !== undefined && normalizedUpdates.assignedPerson === undefined) {
+    normalizedUpdates.assignedPerson = assignedPersonId;
+  }
+  if (normalizedUpdates.tags !== undefined && normalizedUpdates.keywords === undefined) {
+    normalizedUpdates.keywords = normalizedUpdates.tags;
+  }
+  if (normalizedUpdates.keywords !== undefined && normalizedUpdates.tags === undefined) {
+    normalizedUpdates.tags = normalizedUpdates.keywords;
+  }
   const caseDocument = await Case.findOneAndUpdate(
     { _id: id, isDeleted: false },
     {
-      ...safeUpdates,
+      ...normalizedUpdates,
       updatedBy: new Types.ObjectId(userId),
       $push: {
         timeline: {

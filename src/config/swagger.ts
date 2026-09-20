@@ -258,6 +258,22 @@ export const openApiDocument = {
                   status: { type: 'string', example: 'Open' },
                   priority: { type: 'string', example: 'High' },
                   filingDate: { type: 'string', format: 'date', example: '2026-09-15' },
+                  registrationDate: { type: 'string', format: 'date', example: '2026-09-15' },
+                  nextHearingDate: { type: 'string', format: 'date', example: '2026-10-15' },
+                  caseNumber: { type: 'string', example: 'CS/123/2026' },
+                  year: { type: 'integer', example: 2026 },
+                  practiceArea: { type: 'string', example: 'Land Dispute' },
+                  caseStage: { type: 'string', example: 'Evidence' },
+                  assignedPerson: { type: 'string', example: 'user-object-id' },
+                  assignedPersonId: { type: 'string', example: 'user-object-id' },
+                  cmdDecisionRequired: { type: 'boolean', example: false },
+                  plaintiff: { type: 'string', example: 'John Doe' },
+                  defendant: { type: 'string', example: 'Jane Doe' },
+                  plaintiffAdvocate: { type: 'string', example: 'A. Advocate' },
+                  defendantAdvocate: { type: 'string', example: 'B. Advocate' },
+                  remarks: { type: 'string', example: 'Awaiting document review' },
+                  tags: { type: 'array', items: { type: 'string' }, example: ['urgent', 'land'] },
+                  keywords: { type: 'array', items: { type: 'string' }, example: ['boundary', 'title'] },
                   description: { type: 'string', example: 'Commercial dispute regarding service contract' }
                 }
               }

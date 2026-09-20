@@ -65,7 +65,20 @@ router.get('/dashboard/summary', handler(async (req) => {
     Case.countDocuments({ ...baseFilter, cmdDecisionRequired: true, currentStatus: { $ne: 'Closed' } }),
     Hearing.countDocuments({ isDeleted: false, hearingDate: { $gte: todayStart, $lt: todayEnd } })
   ]);
-  return { total, active, closed, critical, cmdDecisionsPending, hearingsToday };
+  return {
+    totalCases: total,
+    activeCases: active,
+    closedCases: closed,
+    criticalCases: critical,
+    cmdDecision: cmdDecisionsPending,
+    todaysHearings: hearingsToday,
+    total,
+    active,
+    closed,
+    critical,
+    cmdDecisionsPending,
+    hearingsToday
+  };
 }));
 
 router.get('/dashboard/case-status-distribution', handler(async (req) => {
@@ -117,7 +130,8 @@ router.get('/dashboard/hearings-this-week', handler(async (req) => {
   if (!permissionsFor(req).includes('case:read:all')) {
     filter.responsiblePerson = req.user.id;
   }
-  return Hearing.find(filter).populate('caseId', 'caseTitle caseId currentStatus').sort({ hearingDate: 1 }).limit(50);
+  const count = await Hearing.countDocuments(filter);
+  return { count };
 }));
 
 router.get('/dashboard/hearings-next-week', handler(async (req) => {
@@ -136,7 +150,20 @@ router.get('/dashboard/hearings-next-week', handler(async (req) => {
 
 router.get('/dashboard/critical-cases', handler(async (req) => {
   const filter = caseAccessFilter(req);
-  return Case.find({ ...filter, isCritical: true }).populate(['assignedPerson', 'court', 'villageLocation']).sort({ updatedAt: -1 }).limit(20);
+  const cases = await Case.find({ ...filter, isCritical: true })
+    .populate('court', 'name')
+    .sort({ updatedAt: -1 })
+    .limit(20)
+    .lean();
+  return cases.map((item) => ({
+    id: item._id,
+    caseId: item.caseId,
+    caseNo: item.caseNumber ?? item.caseId,
+    caseTitle: item.caseTitle,
+    courtName: item.court && typeof item.court === 'object' ? (item.court as any).name : undefined,
+    nextHearingDate: item.nextHearingDate,
+    priority: item.priority
+  }));
 }));
 
 router.get('/dashboard/recent-activities', handler(async (req) => {
