@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed/seed.ts",
+    "import:cases": "tsx src/scripts/import-cases.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },
@@ -29,6 +30,7 @@
     "serverless-http": "^3.0.0",
     "swagger-ui-express": "^5.0.1",
     "typescript": "^5.8.2",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {

@@ -1,4 +1,6 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { Court, Location } from '../lookups/lookup.model';
+import { User } from '../users/user.model';
 
 export interface ICaseTimelineItem {
   type: string;
@@ -23,17 +25,17 @@ const caseSchema = new Schema<ICase>({
   plaintiff: { type: String, required: true }, defendant: { type: String, required: true },
   plaintiffAdvocate: String, defendantAdvocate: String, caseNumber: String, year: Number,
   practiceArea: String, caseStage: String,
-  villageLocation: { type: Schema.Types.ObjectId, ref: 'Location' }, court: { type: Schema.Types.ObjectId, ref: 'Court' },
+  villageLocation: { type: Schema.Types.ObjectId, ref: Location.modelName }, court: { type: Schema.Types.ObjectId, ref: Court.modelName },
   filingDate: { type: Date, required: true }, registrationDate: Date, currentStatus: { type: String, enum: ['Active', 'Closed', 'Stayed', 'Other'], default: 'Active' },
   nextHearingDate: Date, priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
-  cmdDecisionRequired: { type: Boolean, default: false }, assignedPerson: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  remarks: String, tags: { type: [String], default: [] }, keywords: { type: [String], default: [] }, legalTeam: [{ userId: { type: Schema.Types.ObjectId, ref: 'User' }, role: String, name: String }],
+  cmdDecisionRequired: { type: Boolean, default: false }, assignedPerson: { type: Schema.Types.ObjectId, ref: User.modelName, required: true },
+  remarks: String, tags: { type: [String], default: [] }, keywords: { type: [String], default: [] }, legalTeam: [{ userId: { type: Schema.Types.ObjectId, ref: User.modelName }, role: String, name: String }],
   isCritical: { type: Boolean, default: false }, isDeleted: { type: Boolean, default: false },
-  createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }, updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  createdBy: { type: Schema.Types.ObjectId, ref: User.modelName, required: true }, updatedBy: { type: Schema.Types.ObjectId, ref: User.modelName },
   timeline: [{
     type: { type: String, default: 'system' },
     description: { type: String, required: true },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    createdBy: { type: Schema.Types.ObjectId, ref: User.modelName },
     createdAt: { type: Date, default: Date.now }
   }]
 }, { timestamps: true });

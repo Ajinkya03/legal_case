@@ -17,6 +17,24 @@ The API is available at `http://localhost:4000/api/v1`, health is at `/health`, 
 
 For MongoDB Atlas, add the development machine or container's outbound IP address to Atlas **Network Access** before running the server. The process connects to MongoDB before opening its HTTP port, and `/health` returns `503` while the database is disconnected.
 
+## Importing cases from Excel
+
+Use the importer to load a workbook like `cases_list_2026.xlsx` into MongoDB:
+
+```bash
+npm run seed
+npm run import:cases -- ./cases_list_2026.xlsx
+```
+
+The importer will:
+- read the first sheet in the workbook,
+- detect the header row,
+- create or reuse lookup documents for Court and Location,
+- map the Excel fields to the Case schema, and
+- save the data into MongoDB.
+
+Before running it, confirm the Excel file has the expected headers and that the values match the database enum rules (`Current Status`, `Case Type`, `Priority`).
+
 ## Key behavior
 
 - Access tokens use JWT bearer authentication; permissions are resolved from the `Role` collection.

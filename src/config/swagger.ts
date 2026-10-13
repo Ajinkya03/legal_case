@@ -304,12 +304,30 @@ export const openApiDocument = {
         tags: ['Cases'],
         summary: 'Get case details',
         security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Case document ID'
+          }
+        ],
         responses: { '200': { description: 'Case returned' } }
       },
       put: {
         tags: ['Cases'],
         summary: 'Update case',
         security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            in: 'path',
+            name: 'id',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Case document ID'
+          }
+        ],
         requestBody: {
           required: true,
           content: {
@@ -317,14 +335,29 @@ export const openApiDocument = {
               schema: {
                 type: 'object',
                 properties: {
-                  title: { type: 'string', example: 'State vs. Johnson' },
-                  caseType: { type: 'string', example: 'Civil' },
-                  court: { type: 'string', example: 'High Court' },
-                  location: { type: 'string', example: 'Nairobi' },
-                  clientName: { type: 'string', example: 'John Johnson' },
-                  status: { type: 'string', example: 'Open' },
+                  caseTitle: { type: 'string', example: 'State vs. Johnson' },
+                  caseType: { type: 'string', enum: ['Civil', 'Criminal', 'Revenue', 'Family', 'Others'], example: 'Civil' },
+                  plaintiff: { type: 'string', example: 'John Doe' },
+                  defendant: { type: 'string', example: 'Jane Doe' },
+                  plaintiffAdvocate: { type: 'string', example: 'A. Advocate' },
+                  defendantAdvocate: { type: 'string', example: 'B. Advocate' },
+                  caseNumber: { type: 'string', example: 'CS/123/2026' },
+                  year: { type: 'integer', example: 2026 },
+                  practiceArea: { type: 'string', example: 'Land Dispute' },
+                  caseStage: { type: 'string', example: 'Evidence' },
+                  court: { type: 'string', example: '64f1b2c3d9e123456789abcd' },
+                  villageLocation: { type: 'string', example: '64f1b2c3d9e123456789abcd' },
+                  filingDate: { type: 'string', format: 'date', example: '2026-09-15' },
+                  registrationDate: { type: 'string', format: 'date', example: '2026-09-15' },
+                  nextHearingDate: { type: 'string', format: 'date', example: '2026-10-15' },
+                  currentStatus: { type: 'string', enum: ['Active', 'Closed', 'Stayed', 'Other'], example: 'Active' },
                   priority: { type: 'string', example: 'High' },
-                  description: { type: 'string', example: 'Updated dispute details' }
+                  assignedPerson: { type: 'string', example: '64f1b2c3d9e123456789abcd' },
+                  assignedPersonId: { type: 'string', example: '64f1b2c3d9e123456789abcd' },
+                  cmdDecisionRequired: { type: 'boolean', example: false },
+                  remarks: { type: 'string', example: 'Updated dispute details' },
+                  tags: { type: 'array', items: { type: 'string' }, example: ['urgent', 'land'] },
+                  keywords: { type: 'array', items: { type: 'string' }, example: ['boundary', 'title'] }
                 }
               }
             }
