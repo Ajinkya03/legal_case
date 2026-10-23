@@ -2,11 +2,16 @@ import { Types } from 'mongoose';
 import { Case, ICase } from './case.model';
 import { paginate } from '../../utils/pagination';
 
-export function buildCaseFilter(userId: string, permissions: string[], query: Record<string, unknown>) {
+export function buildCaseAccessFilter(userId: string, permissions: string[]) {
   const filter: Record<string, unknown> = { isDeleted: false };
   if (!permissions.includes('case:read:all')) {
     filter.$or = [{ assignedPerson: userId }, { 'legalTeam.userId': userId }];
   }
+  return filter;
+}
+
+export function buildCaseFilter(userId: string, permissions: string[], query: Record<string, unknown>) {
+  const filter = buildCaseAccessFilter(userId, permissions);
 
   const status = typeof query.status === 'string' ? query.status : undefined;
   const priority = typeof query.priority === 'string' ? query.priority : undefined;
@@ -42,18 +47,19 @@ export async function listCases(userId: string, permissions: string[], query: Re
 }
 
 export async function getCase(id: string, userId: string, permissions: string[]) {
-  const filter: Record<string, unknown> = { _id: id, isDeleted: false };
-  if (!permissions.includes('case:read:all')) filter.$or = [{ assignedPerson: userId }, { 'legalTeam.userId': userId }];
+  const filter = { ...buildCaseAccessFilter(userId, permissions), _id: id };
   return Case.findOne(filter).populate(['assignedPerson', 'court', 'villageLocation']);
 }
 
-export async function createCase(input: Partial<ICase>, userId: string) {
+export async function createCase(input: Partial<ICase>, userId: string, permissions: string[]) {
   const year = new Date().getFullYear();
   const count = await Case.countDocuments({ createdAt: { $gte: new Date(`${year}-01-01`) } });
   const caseInput = input as Partial<ICase> & { assignedPersonId?: Types.ObjectId | string; keywords?: string[] };
+  const canReadAll = permissions.includes('case:read:all');
   const created = await Case.create({
     ...caseInput,
-    assignedPerson: caseInput.assignedPerson ?? caseInput.assignedPersonId ?? userId,
+    assignedPerson: canReadAll ? caseInput.assignedPerson ?? caseInput.assignedPersonId ?? userId : userId,
+    legalTeam: canReadAll ? caseInput.legalTeam : [],
     tags: caseInput.tags ?? caseInput.keywords ?? [],
     keywords: caseInput.keywords ?? caseInput.tags ?? [],
     caseId: `LC-${year}-${String(count + 1).padStart(4, '0')}`,
@@ -68,12 +74,17 @@ export async function createCase(input: Partial<ICase>, userId: string) {
   return created.populate(['assignedPerson', 'court', 'villageLocation']);
 }
 
-export async function updateCase(id: string, userId: string, updates: Partial<ICase>) {
+export async function updateCase(id: string, userId: string, permissions: string[], updates: Partial<ICase>) {
   const updateInput = updates as Partial<ICase> & { assignedPersonId?: Types.ObjectId | string };
-  const { _id, isDeleted, createdBy, createdAt, updatedAt, assignedPersonId, ...safeUpdates } = updateInput;
+  const { _id, isDeleted, createdBy, createdAt, updatedAt, assignedPersonId, assignedPerson, legalTeam, ...safeUpdates } = updateInput;
   const normalizedUpdates: Record<string, unknown> = { ...safeUpdates };
-  if (assignedPersonId !== undefined && normalizedUpdates.assignedPerson === undefined) {
-    normalizedUpdates.assignedPerson = assignedPersonId;
+  if (permissions.includes('case:read:all')) {
+    if (assignedPersonId !== undefined && assignedPerson === undefined) {
+      normalizedUpdates.assignedPerson = assignedPersonId;
+    } else if (assignedPerson !== undefined) {
+      normalizedUpdates.assignedPerson = assignedPerson;
+    }
+    if (legalTeam !== undefined) normalizedUpdates.legalTeam = legalTeam;
   }
   if (normalizedUpdates.tags !== undefined && normalizedUpdates.keywords === undefined) {
     normalizedUpdates.keywords = normalizedUpdates.tags;
@@ -82,7 +93,7 @@ export async function updateCase(id: string, userId: string, updates: Partial<IC
     normalizedUpdates.tags = normalizedUpdates.keywords;
   }
   const caseDocument = await Case.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    { ...buildCaseAccessFilter(userId, permissions), _id: id },
     {
       ...normalizedUpdates,
       updatedBy: new Types.ObjectId(userId),
@@ -100,9 +111,9 @@ export async function updateCase(id: string, userId: string, updates: Partial<IC
   return caseDocument;
 }
 
-export async function deleteCase(id: string, userId: string) {
+export async function deleteCase(id: string, userId: string, permissions: string[]) {
   return Case.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    { ...buildCaseAccessFilter(userId, permissions), _id: id },
     {
       isDeleted: true,
       updatedBy: new Types.ObjectId(userId),
@@ -119,9 +130,9 @@ export async function deleteCase(id: string, userId: string) {
   );
 }
 
-export async function updateCaseStatus(id: string, userId: string, status: string) {
+export async function updateCaseStatus(id: string, userId: string, permissions: string[], status: string) {
   return Case.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    { ...buildCaseAccessFilter(userId, permissions), _id: id },
     {
       currentStatus: status,
       updatedBy: new Types.ObjectId(userId),

@@ -11,6 +11,7 @@ import { Notification } from '../modules/notifications/notification.model';
 import { CalendarEvent } from '../modules/calendar/calendarEvent.model';
 import { Settings } from '../modules/settings/settings.model';
 import { Case } from '../modules/cases/case.model';
+import { buildCaseAccessFilter } from '../modules/cases/case.service';
 import { User } from '../modules/users/user.model';
 import { Role } from '../modules/roles/role.model';
 import { ApiError } from '../utils/ApiError';
@@ -31,16 +32,7 @@ const upload = multer({
 });
 const handler = (action: (req: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await action(req) }); } catch (error) { next(error); } };
 const permissionsFor = (req: any) => req.auth?.permissions ?? [];
-const caseAccessFilter = (req: any) => {
-  const filter: Record<string, unknown> = { isDeleted: false };
-  if (!permissionsFor(req).includes('case:read:all')) {
-    filter.$or = [
-      { assignedPerson: req.user.id },
-      { 'legalTeam.userId': req.user.id }
-    ];
-  }
-  return filter;
-};
+const caseAccessFilter = (req: any) => buildCaseAccessFilter(req.user.id, permissionsFor(req));
 const hearingAccessFilter = (req: any, overrides: Record<string, unknown> = {}) => {
   const filter: Record<string, unknown> = { isDeleted: false, ...overrides };
   if (!permissionsFor(req).includes('case:read:all')) {
@@ -63,7 +55,7 @@ router.get('/dashboard/summary', handler(async (req) => {
     Case.countDocuments({ ...baseFilter, currentStatus: 'Closed' }),
     Case.countDocuments({ ...baseFilter, isCritical: true }),
     Case.countDocuments({ ...baseFilter, cmdDecisionRequired: true, currentStatus: { $ne: 'Closed' } }),
-    Hearing.countDocuments({ isDeleted: false, hearingDate: { $gte: todayStart, $lt: todayEnd } })
+    Hearing.countDocuments(hearingAccessFilter(req, { hearingDate: { $gte: todayStart, $lt: todayEnd } }))
   ]);
   return {
     totalCases: total,
@@ -126,10 +118,7 @@ router.get('/dashboard/hearings-this-week', handler(async (req) => {
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(start.getDate() + 7);
-  const filter: Record<string, unknown> = { isDeleted: false, hearingDate: { $gte: start, $lt: end } };
-  if (!permissionsFor(req).includes('case:read:all')) {
-    filter.responsiblePerson = req.user.id;
-  }
+  const filter = hearingAccessFilter(req, { hearingDate: { $gte: start, $lt: end } });
   const count = await Hearing.countDocuments(filter);
   return { count };
 }));
@@ -141,10 +130,7 @@ router.get('/dashboard/hearings-next-week', handler(async (req) => {
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(start.getDate() + 7);
-  const filter: Record<string, unknown> = { isDeleted: false, hearingDate: { $gte: start, $lt: end } };
-  if (!permissionsFor(req).includes('case:read:all')) {
-    filter.responsiblePerson = req.user.id;
-  }
+  const filter = hearingAccessFilter(req, { hearingDate: { $gte: start, $lt: end } });
   return Hearing.find(filter).populate('caseId', 'caseTitle caseId currentStatus').sort({ hearingDate: 1 }).limit(50);
 }));
 
@@ -207,7 +193,7 @@ router.get('/dashboard/export', async (req: any, res: any, next: any) => {
           Case.countDocuments({ ...baseFilter, currentStatus: 'Closed' }),
           Case.countDocuments({ ...baseFilter, isCritical: true }),
           Case.countDocuments({ ...baseFilter, cmdDecisionRequired: true, currentStatus: { $ne: 'Closed' } }),
-          Hearing.countDocuments({ isDeleted: false, hearingDate: { $gte: todayStart, $lt: todayEnd } })
+          Hearing.countDocuments(hearingAccessFilter(req, { hearingDate: { $gte: todayStart, $lt: todayEnd } }))
         ]);
         return { total, active, closed, critical, cmdDecisionsPending, hearingsToday };
       })(),
@@ -251,10 +237,7 @@ router.get('/dashboard/export', async (req: any, res: any, next: any) => {
         return recentCases.map((item) => ({ type: 'Case', title: item.caseTitle, status: item.currentStatus, priority: item.priority, date: (item as any).updatedAt }));
       })(),
       recentHearingUpdates: await (async () => {
-        const filter: Record<string, unknown> = { isDeleted: false };
-        if (!permissionsFor(req).includes('case:read:all')) {
-          filter.responsiblePerson = req.user.id;
-        }
+        const filter = hearingAccessFilter(req);
         const hearings = await Hearing.find(filter).populate('caseId', 'caseTitle caseId').sort({ updatedAt: -1 }).limit(10).lean();
         return hearings.map((item) => ({ id: item._id, caseTitle: item.caseId && typeof item.caseId === 'object' ? (item.caseId as any).caseTitle : 'Unknown case', hearingDate: item.hearingDate, status: item.status, updatedAt: (item as any).updatedAt }));
       })()
@@ -505,7 +488,7 @@ router.post('/cases/:caseId/hearings', authorize('hearing:create', 'case:update'
   try {
     const caseId = String(req.params.caseId ?? '');
     const currentUserId = String(req.user?.id ?? '');
-    const caseDoc = await Case.findOne({ _id: caseId, isDeleted: false });
+    const caseDoc = await Case.findOne({ ...caseAccessFilter(req), _id: caseId });
     if (!caseDoc) return res.status(404).json({ success: false, message: 'Case not found' });
     if (!permissionsFor(req).includes('case:read:all') && String(caseDoc.assignedPerson) !== currentUserId && !caseDoc.legalTeam.some((member) => String(member.userId) === currentUserId)) {
       return res.status(403).json({ success: false, message: 'You are not allowed to create hearing for this case' });
@@ -551,7 +534,7 @@ router.get('/cases/:caseId/documents', async (req, res, next) => {
 router.post('/cases/:caseId/documents', authorize('document:create', 'case:update'), upload.array('files', 20), async (req, res, next) => {
   try {
     const caseId = String(req.params.caseId ?? '');
-    const caseDoc = await Case.findOne({ _id: caseId, isDeleted: false });
+    const caseDoc = await Case.findOne({ ...caseAccessFilter(req), _id: caseId });
     if (!caseDoc) return res.status(404).json({ success: false, message: 'Case not found' });
     const files = Array.isArray((req as any).files) ? (req as any).files : [];
     if (!files.length) return res.status(400).json({ success: false, message: 'No files uploaded' });
@@ -644,10 +627,14 @@ router.get('/calendar', async (req, res, next) => {
       date: { $gte: start, $lt: end }
     };
     if (!permissionsFor(req).includes('case:read:all')) {
+      const [accessibleCaseIds, accessibleHearingIds] = await Promise.all([
+        Case.distinct('_id', caseAccessFilter(req)),
+        Hearing.distinct('_id', hearingAccessFilter(req))
+      ]);
       filter.$or = [
-        { createdBy: currentUserId },
-        { caseId: { $exists: true } },
-        { hearingId: { $exists: true } }
+        { caseId: { $in: accessibleCaseIds } },
+        { hearingId: { $in: accessibleHearingIds } },
+        { createdBy: currentUserId, caseId: { $exists: false }, hearingId: { $exists: false } }
       ];
     }
 
@@ -917,9 +904,13 @@ router.get('/settings/audit-logs', authorize('settings:read'), async (req, res, 
   }
 });
 
+const getAdminRoleIds = async () => {
+  const adminRoles = await Role.find({ name: /admin/i }).select('_id').lean();
+  return adminRoles.map((role) => role._id);
+};
+
 const getUserStats = async () => {
-  const adminRoles = await Role.find({ name: { $in: ['Super Admin', 'Administrator'] } }).select('_id').lean();
-  const adminRoleIds = adminRoles.map((role) => role._id);
+  const adminRoleIds = await getAdminRoleIds();
   const [total, active, inactive, admins, standardUsers] = await Promise.all([
     User.countDocuments({ isDeleted: false }),
     User.countDocuments({ isDeleted: false, status: 'active' }),
@@ -976,7 +967,8 @@ router.delete('/roles/:id', authorize('user:manage'), async (req, res, next) => 
 
 router.get('/users', authorize('user:manage'), async (req, res, next) => {
   try {
-    const users = await User.find({ isDeleted: false }).populate('role').select('-passwordHash').sort({ createdAt: -1 });
+    const adminRoleIds = await getAdminRoleIds();
+    const users = await User.find({ isDeleted: false, role: { $nin: adminRoleIds } }).populate('role').select('-passwordHash').sort({ createdAt: -1 });
     const stats = await getUserStats();
     res.json({ success: true, data: { stats, users } });
   } catch (error) {

@@ -64,7 +64,7 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', authorize('case:create'), async (req, res, next) => {
   try {
-    const data = await createCase(req.body, req.user!.id);
+    const data = await createCase(req.body, req.user!.id, permissions(req));
     res.status(201).json({ success: true, data });
   } catch (error) {
     next(error);
@@ -74,7 +74,7 @@ router.post('/', authorize('case:create'), async (req, res, next) => {
 router.put('/:id', authorize('case:update'), async (req, res, next) => {
   try {
     const caseId = String(req.params.id ?? '');
-    const data = await updateCase(caseId, req.user!.id, req.body);
+    const data = await updateCase(caseId, req.user!.id, permissions(req), req.body);
     if (!data) return res.status(404).json({ success: false, message: 'Case not found' });
     res.json({ success: true, data });
   } catch (error) {
@@ -85,7 +85,7 @@ router.put('/:id', authorize('case:update'), async (req, res, next) => {
 router.patch('/:id/status', authorize('case:update'), async (req, res, next) => {
   try {
     const caseId = String(req.params.id ?? '');
-    const data = await updateCaseStatus(caseId, req.user!.id, String(req.body?.currentStatus ?? ''));
+    const data = await updateCaseStatus(caseId, req.user!.id, permissions(req), String(req.body?.currentStatus ?? ''));
     if (!data) return res.status(404).json({ success: false, message: 'Case not found' });
     res.json({ success: true, data });
   } catch (error) {
@@ -96,7 +96,7 @@ router.patch('/:id/status', authorize('case:update'), async (req, res, next) => 
 router.delete('/:id', authorize('case:delete'), async (req, res, next) => {
   try {
     const caseId = String(req.params.id ?? '');
-    const data = await deleteCase(caseId, req.user!.id);
+    const data = await deleteCase(caseId, req.user!.id, permissions(req));
     if (!data) return res.status(404).json({ success: false, message: 'Case not found' });
     res.json({ success: true, message: 'Case deleted' });
   } catch (error) {

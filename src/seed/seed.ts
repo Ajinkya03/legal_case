@@ -14,7 +14,7 @@ async function seed(): Promise<void> {
     { name: 'Administrator', permissions: allPermissions.filter((permission) => !['settings:manage'].includes(permission)), isSystemRole: true },
     { name: 'Legal Assistant', permissions: ['case:create', 'case:update', 'hearing:create', 'document:create'], isSystemRole: true },
     { name: 'Standard User', permissions: ['case:create', 'case:update', 'hearing:create', 'document:create'], isSystemRole: true },
-    { name: 'Viewer', permissions: ['case:read:all'], isSystemRole: true }
+    { name: 'Viewer', permissions: [], isSystemRole: true }
   ];
   const roles = new Map<string, string>();
   for (const definition of roleDefinitions) roles.set(definition.name, (await Role.findOneAndUpdate({ name: definition.name }, definition, { upsert: true, new: true })).id);
