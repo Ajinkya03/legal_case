@@ -1,7 +1,9 @@
 node_modules/
-dist/
 .env
 uploads/
+backups/
 coverage/
 package-lock.json
+Final_Court_Cases_CRM_Import_Mapped_with_Case_Title.xlsx
+Court_Cases_CRM_Import_Mapped.xlsx
 cases_list_2026.xlsx

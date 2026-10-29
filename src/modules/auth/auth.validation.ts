@@ -4,10 +4,11 @@ export const loginSchema = z
   .object({
     email: z.string().email().optional(),
     identifier: z.string().min(1).optional(),
+    username: z.string().min(1).optional(),
     password: z.string().min(8)
   })
   .transform((value) => ({
-    identifier: value.email ?? value.identifier ?? '',
+    identifier: value.email ?? value.identifier ?? value.username ?? '',
     password: value.password
   }))
   .refine((value) => value.identifier.length > 0, {

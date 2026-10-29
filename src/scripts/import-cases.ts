@@ -13,6 +13,14 @@ const normalizeText = (value: unknown): string => {
   return String(value).replace(/\s+/g, ' ').trim();
 };
 
+const valueFrom = (record: Record<string, unknown>, aliases: string[]): unknown => {
+  for (const alias of aliases) {
+    const normalizedAlias = normalizeText(alias).toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(record, normalizedAlias)) return record[normalizedAlias];
+  }
+  return undefined;
+};
+
 const parseExcelDate = (value: unknown): Date | undefined => {
   if (!value) return undefined;
 
@@ -33,6 +41,22 @@ const parseExcelDate = (value: unknown): Date | undefined => {
 
   const text = normalizeText(value);
   if (!text) return undefined;
+
+  const isoMatch = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
+  if (isoMatch) {
+    const year = Number(isoMatch[1]);
+    const month = Number(isoMatch[2]);
+    const day = Number(isoMatch[3]);
+    const date = new Date(year, month - 1, day);
+    if (
+      date.getFullYear() === year &&
+      date.getMonth() === month - 1 &&
+      date.getDate() === day
+    ) {
+      return date;
+    }
+    return undefined;
+  }
 
   const normalized = text.replace(/\./g, '/');
   const parts = normalized.split(/[\/\-]/).map((part) => part.trim()).filter(Boolean);
@@ -164,7 +188,9 @@ function findHeaderRow(rows: unknown[][]) {
       .map((cell) => normalizeText(cell))
       .join(' | ')
       .toLowerCase();
-    if (joined.includes('sr. no.') || joined.includes('case no.') || joined.includes('court name')) {
+    const isSourceHeader = joined.includes('sr. no.') || joined.includes('court name *');
+    const isCrmHeader = joined.includes('case no.') && joined.includes('plaintiff') && joined.includes('defendant');
+    if (isSourceHeader || isCrmHeader) {
       return { index, headers: row.map((cell) => normalizeText(cell)) };
     }
   }
@@ -174,7 +200,7 @@ function findHeaderRow(rows: unknown[][]) {
 
 async function importCasesFromWorkbook(filePath: string) {
   const workbook = XLSX.readFile(filePath);
-  const sheetName = workbook.SheetNames[0];
+  const sheetName = workbook.SheetNames.includes('CRM Import') ? 'CRM Import' : workbook.SheetNames[0];
   if (!sheetName) {
     throw new Error(`No worksheet found in workbook: ${filePath}`);
   }
@@ -202,35 +228,41 @@ async function importCasesFromWorkbook(filePath: string) {
       Object.entries(record).map(([key, value]) => [normalizeText(key).toLowerCase(), value])
     );
 
-    if (!normalizedRecord['case no.'] && !normalizedRecord['party name *'] && !normalizedRecord['second party name *']) {
-      continue;
-    }
+    const caseNumber = normalizeText(valueFrom(normalizedRecord, ['case no.']))
+    const plaintiff = normalizeText(valueFrom(normalizedRecord, ['party name *', 'plaintiff']))
+    const defendant = normalizeText(valueFrom(normalizedRecord, ['second party name *', 'defendant']))
+    if (!caseNumber && !plaintiff && !defendant) continue;
 
-    const caseNumber = normalizeText(normalizedRecord['case no.']);
-    const plaintiff = normalizeText(normalizedRecord['party name *']);
-    const defendant = normalizeText(normalizedRecord['second party name *']);
-    const courtName = normalizeText(normalizedRecord['court name *']);
-    const place = normalizeText(normalizedRecord['place']);
-    const village = normalizeText(normalizedRecord['village']);
-    const filingDateValue = normalizedRecord['filling date *'] ?? normalizedRecord['filing date *'];
-    const filingDate = parseExcelDate(filingDateValue) ?? new Date();
-    const nextHearingDate = parseExcelDate(normalizedRecord['next date *']);
-    const registrationDate = parseExcelDate(normalizedRecord['registration date']);
-    const yearValue = Number(normalizeText(normalizedRecord['year']) || new Date(filingDate).getFullYear());
-    const caseType = normalizeCaseType(normalizedRecord['case type *']);
-    const currentStatus = normalizeCurrentStatus(normalizedRecord['current status *']);
-    const priority = normalizePriority(normalizedRecord['priority (low, medium, high) *']);
-    const practiceArea = normalizeText(normalizedRecord['practice area *']);
-    const caseStage = normalizeText(normalizedRecord['stage *']) || normalizeText(normalizedRecord['stage']);
-    const claimValue = normalizeText(normalizedRecord['claim of the suit']);
-    const remarks = normalizeText(normalizedRecord['remark']);
-    const tags = [...new Set([...toArray(normalizedRecord['tags']), practiceArea, courtName, village].filter(Boolean))];
-    const cmdDecisionRequired = normalizeBoolean(normalizedRecord['cmd decision (yes or no) *']);
+    const courtName = normalizeText(valueFrom(normalizedRecord, ['court name *', 'court']))
+    const place = normalizeText(valueFrom(normalizedRecord, ['place']))
+    const village = normalizeText(valueFrom(normalizedRecord, ['village', 'village / location']))
+    const filingDateValue = valueFrom(normalizedRecord, ['filling date *', 'filing date', 'filing date *'])
+    const filingDate = parseExcelDate(filingDateValue)
+    if (!filingDate) {
+      console.warn(`Importing case ${caseNumber || plaintiff || imported + 1} without a filing date.`);
+    }
+    const nextHearingDate = parseExcelDate(valueFrom(normalizedRecord, ['next date *', 'next hearing date']))
+    const registrationDate = parseExcelDate(valueFrom(normalizedRecord, ['registration date']))
+    const inferredYear = filingDate?.getFullYear()
+    const yearValue = Number(normalizeText(valueFrom(normalizedRecord, ['year'])) || inferredYear)
+    const caseType = normalizeCaseType(valueFrom(normalizedRecord, ['case type *', 'case type']))
+    const currentStatus = normalizeCurrentStatus(valueFrom(normalizedRecord, ['current status *', 'remark']))
+    const priority = normalizePriority(valueFrom(normalizedRecord, ['priority (low, medium, high) *', 'priority']))
+    const practiceArea = normalizeText(valueFrom(normalizedRecord, ['practice area *', 'practice area']))
+    const caseStage = normalizeText(valueFrom(normalizedRecord, ['stage *', 'case stage', 'stage']))
+    const claimValue = normalizeText(valueFrom(normalizedRecord, ['claim of the suit', 'reason for suit']))
+    const remarks = normalizeText(valueFrom(normalizedRecord, ['remark', 'current status']))
+    const plaintiffAdvocate = normalizeText(valueFrom(normalizedRecord, ['conducted by', 'plaintiff advocate']))
+    const defendantAdvocate = normalizeText(valueFrom(normalizedRecord, ['defendant advocate']))
+    const tags = [...new Set([...toArray(valueFrom(normalizedRecord, ['tags'])), practiceArea, courtName, village].filter(Boolean))]
+    const cmdDecisionRequired = normalizeBoolean(valueFrom(normalizedRecord, ['cmd decision (yes or no) *', 'cmd decision required']))
 
     const courtId = await findOrCreateCourt(courtName || 'Unknown Court');
     const locationId = await findOrCreateLocation(place, village);
-    const title = normalizeCaseTitle(claimValue || normalizedRecord['title'], plaintiff, defendant);
-    const safeCaseNumber = caseNumber || `LC-${new Date(filingDate).getFullYear()}-${String(imported + 1).padStart(4, '0')}`;
+    const sourceTitle = normalizeText(valueFrom(normalizedRecord, ['case title', 'title']));
+    const title = normalizeCaseTitle(sourceTitle, plaintiff, defendant);
+    const caseYear = filingDate?.getFullYear() ?? normalizeText(valueFrom(normalizedRecord, ['year']));
+    const safeCaseNumber = caseNumber || `LC-${caseYear || 'UNKNOWN'}-${String(imported + 1).padStart(4, '0')}`;
 
     const upsertPayload = {
       caseId: safeCaseNumber,
@@ -239,6 +271,8 @@ async function importCasesFromWorkbook(filePath: string) {
       caseType,
       plaintiff: plaintiff || 'Unknown Plaintiff',
       defendant: defendant || 'Unknown Defendant',
+      plaintiffAdvocate: plaintiffAdvocate || undefined,
+      defendantAdvocate: defendantAdvocate || undefined,
       caseStage,
       practiceArea: practiceArea || 'General',
       court: courtId,
@@ -250,7 +284,8 @@ async function importCasesFromWorkbook(filePath: string) {
       priority,
       cmdDecisionRequired,
       remarks: remarks || undefined,
-      year: Number.isFinite(yearValue) ? yearValue : new Date(filingDate).getFullYear(),
+      reasonForSuit: claimValue || undefined,
+      year: Number.isFinite(yearValue) ? yearValue : inferredYear,
       tags,
       keywords: tags,
       assignedPerson: assignedPersonId,

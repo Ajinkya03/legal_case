@@ -57,19 +57,25 @@ router.get('/dashboard/summary', handler(async (req) => {
     Case.countDocuments({ ...baseFilter, cmdDecisionRequired: true, currentStatus: { $ne: 'Closed' } }),
     Hearing.countDocuments(hearingAccessFilter(req, { hearingDate: { $gte: todayStart, $lt: todayEnd } }))
   ]);
+  const todaysHearingCount = hearingsToday > 0
+    ? hearingsToday
+    : await Case.countDocuments({
+      ...baseFilter,
+      nextHearingDate: { $gte: todayStart, $lt: todayEnd }
+    });
   return {
     totalCases: total,
     activeCases: active,
     closedCases: closed,
     criticalCases: critical,
     cmdDecision: cmdDecisionsPending,
-    todaysHearings: hearingsToday,
+    todaysHearings: todaysHearingCount,
     total,
     active,
     closed,
     critical,
     cmdDecisionsPending,
-    hearingsToday
+    hearingsToday: todaysHearingCount
   };
 }));
 
@@ -119,7 +125,13 @@ router.get('/dashboard/hearings-this-week', handler(async (req) => {
   const end = new Date(start);
   end.setDate(start.getDate() + 7);
   const filter = hearingAccessFilter(req, { hearingDate: { $gte: start, $lt: end } });
-  const count = await Hearing.countDocuments(filter);
+  const hearingCount = await Hearing.countDocuments(filter);
+  if (hearingCount > 0) return { count: hearingCount };
+
+  const count = await Case.countDocuments({
+    ...caseAccessFilter(req),
+    nextHearingDate: { $gte: start, $lt: end }
+  });
   return { count };
 }));
 
@@ -131,7 +143,13 @@ router.get('/dashboard/hearings-next-week', handler(async (req) => {
   const end = new Date(start);
   end.setDate(start.getDate() + 7);
   const filter = hearingAccessFilter(req, { hearingDate: { $gte: start, $lt: end } });
-  return Hearing.find(filter).populate('caseId', 'caseTitle caseId currentStatus').sort({ hearingDate: 1 }).limit(50);
+  const hearings = await Hearing.find(filter).populate('caseId', 'caseTitle caseId currentStatus').sort({ hearingDate: 1 }).limit(50).lean();
+  if (hearings.length > 0) return hearings;
+
+  return Case.find({
+    ...caseAccessFilter(req),
+    nextHearingDate: { $gte: start, $lt: end }
+  }).select('caseId caseNumber caseTitle nextHearingDate currentStatus priority court').sort({ nextHearingDate: 1 }).limit(50).lean();
 }));
 
 router.get('/dashboard/critical-cases', handler(async (req) => {

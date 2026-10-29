@@ -11,8 +11,8 @@ export interface ICaseTimelineItem {
 
 export interface ICase extends Document {
   caseId: string; caseTitle: string; caseType: string; plaintiff: string; defendant: string;
-  plaintiffAdvocate?: string; defendantAdvocate?: string; caseNumber?: string; year?: number;
-  practiceArea?: string; caseStage?: string; villageLocation?: Types.ObjectId; court?: Types.ObjectId; filingDate: Date;
+  plaintiffAdvocate?: string; defendantAdvocate?: string; caseNumber?: string; year?: number; reasonForSuit?: string;
+  practiceArea?: string; caseStage?: string; villageLocation?: Types.ObjectId; court?: Types.ObjectId; filingDate?: Date;
   registrationDate?: Date; currentStatus: string; nextHearingDate?: Date; priority: string; cmdDecisionRequired: boolean;
   assignedPerson: Types.ObjectId; remarks?: string; tags: string[]; keywords: string[]; legalTeam: { userId: Types.ObjectId; role: string; name: string }[];
   isCritical: boolean; isDeleted: boolean; createdBy: Types.ObjectId; updatedBy?: Types.ObjectId;
@@ -23,10 +23,10 @@ const caseSchema = new Schema<ICase>({
   caseId: { type: String, unique: true, index: true }, caseTitle: { type: String, required: true, trim: true },
   caseType: { type: String, enum: ['Civil', 'Criminal', 'Revenue', 'Family', 'Others'], required: true },
   plaintiff: { type: String, required: true }, defendant: { type: String, required: true },
-  plaintiffAdvocate: String, defendantAdvocate: String, caseNumber: String, year: Number,
+  plaintiffAdvocate: String, defendantAdvocate: String, caseNumber: String, year: Number, reasonForSuit: String,
   practiceArea: String, caseStage: String,
   villageLocation: { type: Schema.Types.ObjectId, ref: Location.modelName }, court: { type: Schema.Types.ObjectId, ref: Court.modelName },
-  filingDate: { type: Date, required: true }, registrationDate: Date, currentStatus: { type: String, enum: ['Active', 'Closed', 'Stayed', 'Other'], default: 'Active' },
+  filingDate: Date, registrationDate: Date, currentStatus: { type: String, default: 'Active', trim: true },
   nextHearingDate: Date, priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   cmdDecisionRequired: { type: Boolean, default: false }, assignedPerson: { type: Schema.Types.ObjectId, ref: User.modelName, required: true },
   remarks: String, tags: { type: [String], default: [] }, keywords: { type: [String], default: [] }, legalTeam: [{ userId: { type: Schema.Types.ObjectId, ref: User.modelName }, role: String, name: String }],
