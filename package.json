@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "seed": "tsx src/seed/seed.ts",
     "import:cases": "tsx src/scripts/import-cases.ts",
+    "import:hearings": "tsx src/scripts/import-hearings.ts",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write ."
   },

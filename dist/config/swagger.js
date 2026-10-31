@@ -402,12 +402,30 @@ exports.openApiDocument = {
                 tags: ['Cases'],
                 summary: 'Get case timeline',
                 security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: { type: 'string' },
+                        description: 'Case document MongoDB ID'
+                    }
+                ],
                 responses: { '200': { description: 'Timeline returned' } }
             },
             post: {
                 tags: ['Cases'],
                 summary: 'Add timeline event',
                 security: [{ bearerAuth: [] }],
+                parameters: [
+                    {
+                        in: 'path',
+                        name: 'id',
+                        required: true,
+                        schema: { type: 'string' },
+                        description: 'Case document MongoDB ID'
+                    }
+                ],
                 requestBody: {
                     required: true,
                     content: {

@@ -15,6 +15,7 @@ exports.buildCasePdf = buildCasePdf;
 const mongoose_1 = require("mongoose");
 const case_model_1 = require("./case.model");
 const pagination_1 = require("../../utils/pagination");
+const document_model_1 = require("../documents/document.model");
 function buildCaseAccessFilter(userId, permissions) {
     const filter = { isDeleted: false };
     if (!permissions.includes('case:read:all')) {
@@ -57,11 +58,36 @@ function buildCaseFilter(userId, permissions, query) {
 }
 async function listCases(userId, permissions, query) {
     const filter = buildCaseFilter(userId, permissions, query);
-    return (0, pagination_1.paginate)(case_model_1.Case, filter, query, ['assignedPerson', 'court', 'villageLocation']);
+    return (0, pagination_1.paginate)(case_model_1.Case, filter, query, [
+        'assignedPerson',
+        'court',
+        'villageLocation',
+        'legalTeam.userId',
+        'createdBy',
+        'updatedBy',
+        'timeline.createdBy'
+    ]);
 }
 async function getCase(id, userId, permissions) {
     const filter = { ...buildCaseAccessFilter(userId, permissions), _id: id };
-    return case_model_1.Case.findOne(filter).populate(['assignedPerson', 'court', 'villageLocation']);
+    const caseDocument = await case_model_1.Case.findOne(filter).populate([
+        'assignedPerson',
+        'court',
+        'villageLocation',
+        'legalTeam.userId',
+        'createdBy',
+        'updatedBy',
+        'timeline.createdBy'
+    ]);
+    if (!caseDocument)
+        return null;
+    const documents = await document_model_1.DocumentModel.find({
+        caseId: caseDocument._id,
+        isDeleted: false
+    }).populate('uploadedBy').sort({ createdAt: -1 });
+    const caseWithDocuments = caseDocument;
+    caseWithDocuments.documents = documents;
+    return caseWithDocuments;
 }
 async function createCase(input, userId, permissions) {
     const year = new Date().getFullYear();
@@ -106,8 +132,10 @@ async function updateCase(id, userId, permissions, updates) {
         normalizedUpdates.tags = normalizedUpdates.keywords;
     }
     const caseDocument = await case_model_1.Case.findOneAndUpdate({ ...buildCaseAccessFilter(userId, permissions), _id: id }, {
-        ...normalizedUpdates,
-        updatedBy: new mongoose_1.Types.ObjectId(userId),
+        $set: {
+            ...normalizedUpdates,
+            updatedBy: new mongoose_1.Types.ObjectId(userId)
+        },
         $push: {
             timeline: {
                 type: 'update',
@@ -151,7 +179,14 @@ async function getCaseTimeline(id, userId, permissions) {
     const doc = await getCase(id, userId, permissions);
     if (!doc)
         return [];
-    return (doc.timeline ?? []).sort((a, b) => new Date(b.createdAt ?? Date.now()).getTime() - new Date(a.createdAt ?? Date.now()).getTime());
+    return [...(doc.timeline ?? [])]
+        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+        .map((item) => {
+        const timelineItem = typeof item.toObject === 'function'
+            ? item.toObject()
+            : item;
+        return { ...timelineItem, date: timelineItem.createdAt };
+    });
 }
 async function appendCaseTimeline(id, userId, permissions, payload) {
     const caseDoc = await getCase(id, userId, permissions);
@@ -161,11 +196,11 @@ async function appendCaseTimeline(id, userId, permissions, payload) {
         type: payload.type ?? 'manual',
         description: payload.description ?? 'Timeline event added',
         createdBy: new mongoose_1.Types.ObjectId(userId),
-        createdAt: new Date()
+        createdAt: payload.date ? new Date(payload.date) : new Date()
     };
     caseDoc.timeline = [...(caseDoc.timeline ?? []), item];
     await caseDoc.save();
-    return item;
+    return { ...item, date: item.createdAt };
 }
 function buildCaseExcelCsv(cases) {
     const rows = cases.map((item) => [

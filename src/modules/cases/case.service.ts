@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { Case, ICase } from './case.model';
 import { paginate } from '../../utils/pagination';
+import { DocumentModel } from '../documents/document.model';
 
 export function buildCaseAccessFilter(userId: string, permissions: string[]) {
   const filter: Record<string, unknown> = { isDeleted: false };
@@ -43,12 +44,38 @@ export function buildCaseFilter(userId: string, permissions: string[], query: Re
 
 export async function listCases(userId: string, permissions: string[], query: Record<string, unknown>) {
   const filter = buildCaseFilter(userId, permissions, query);
-  return paginate(Case, filter, query, ['assignedPerson', 'court', 'villageLocation']);
+  return paginate(Case, filter, query, [
+    'assignedPerson',
+    'court',
+    'villageLocation',
+    'legalTeam.userId',
+    'createdBy',
+    'updatedBy',
+    'timeline.createdBy'
+  ]);
 }
 
 export async function getCase(id: string, userId: string, permissions: string[]) {
   const filter = { ...buildCaseAccessFilter(userId, permissions), _id: id };
-  return Case.findOne(filter).populate(['assignedPerson', 'court', 'villageLocation']);
+  const caseDocument = await Case.findOne(filter).populate([
+    'assignedPerson',
+    'court',
+    'villageLocation',
+    'legalTeam.userId',
+    'createdBy',
+    'updatedBy',
+    'timeline.createdBy'
+  ]);
+  if (!caseDocument) return null;
+
+  const documents = await DocumentModel.find({
+    caseId: caseDocument._id,
+    isDeleted: false
+  }).populate('uploadedBy').sort({ createdAt: -1 });
+
+  const caseWithDocuments = caseDocument as unknown as ICase & { documents: typeof documents };
+  caseWithDocuments.documents = documents;
+  return caseWithDocuments;
 }
 
 export async function createCase(input: Partial<ICase>, userId: string, permissions: string[]) {
@@ -92,11 +119,14 @@ export async function updateCase(id: string, userId: string, permissions: string
   if (normalizedUpdates.keywords !== undefined && normalizedUpdates.tags === undefined) {
     normalizedUpdates.tags = normalizedUpdates.keywords;
   }
+
   const caseDocument = await Case.findOneAndUpdate(
     { ...buildCaseAccessFilter(userId, permissions), _id: id },
     {
-      ...normalizedUpdates,
-      updatedBy: new Types.ObjectId(userId),
+      $set: {
+        ...normalizedUpdates,
+        updatedBy: new Types.ObjectId(userId)
+      },
       $push: {
         timeline: {
           type: 'update',
@@ -152,21 +182,28 @@ export async function updateCaseStatus(id: string, userId: string, permissions: 
 export async function getCaseTimeline(id: string, userId: string, permissions: string[]) {
   const doc = await getCase(id, userId, permissions);
   if (!doc) return [];
-  return (doc.timeline ?? []).sort((a, b) => new Date(b.createdAt ?? Date.now()).getTime() - new Date(a.createdAt ?? Date.now()).getTime());
+  return [...(doc.timeline ?? [])]
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
+    .map((item) => {
+      const timelineItem = typeof (item as any).toObject === 'function'
+        ? (item as any).toObject()
+        : item;
+      return { ...timelineItem, date: timelineItem.createdAt };
+    });
 }
 
-export async function appendCaseTimeline(id: string, userId: string, permissions: string[], payload: { type?: string; description?: string }) {
+export async function appendCaseTimeline(id: string, userId: string, permissions: string[], payload: { type?: string; description?: string; date?: string | Date }) {
   const caseDoc = await getCase(id, userId, permissions);
   if (!caseDoc) throw new Error('Case not found');
   const item = {
     type: payload.type ?? 'manual',
     description: payload.description ?? 'Timeline event added',
     createdBy: new Types.ObjectId(userId),
-    createdAt: new Date()
+    createdAt: payload.date ? new Date(payload.date) : new Date()
   };
   caseDoc.timeline = [...(caseDoc.timeline ?? []), item];
   await caseDoc.save();
-  return item;
+  return { ...item, date: item.createdAt };
 }
 
 export function buildCaseExcelCsv(cases: any[]) {

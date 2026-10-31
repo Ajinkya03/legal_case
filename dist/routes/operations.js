@@ -26,6 +26,14 @@ router.use(authenticate_1.authenticate);
 const uploadDir = path_1.default.join(process.cwd(), env_1.env.UPLOAD_DIR || 'uploads');
 if (!fs_1.default.existsSync(uploadDir))
     fs_1.default.mkdirSync(uploadDir, { recursive: true });
+const allowedDocumentExtensions = /\.(pdf|xlsx?|png|jpe?g)$/i;
+const allowedDocumentMimeTypes = new Set([
+    'application/pdf',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/png',
+    'image/jpeg'
+]);
 const upload = (0, multer_1.default)({
     storage: multer_1.default.diskStorage({
         destination: (_req, _file, cb) => cb(null, uploadDir),
@@ -34,6 +42,14 @@ const upload = (0, multer_1.default)({
             cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${safeName}`);
         }
     }),
+    fileFilter: (_req, file, cb) => {
+        const hasAllowedExtension = allowedDocumentExtensions.test(file.originalname);
+        if (!hasAllowedExtension || !allowedDocumentMimeTypes.has(file.mimetype)) {
+            cb(new ApiError_1.ApiError(400, 'Only PDF, Excel (.xls/.xlsx), PNG, and JPG/JPEG files are allowed'));
+            return;
+        }
+        cb(null, true);
+    },
     limits: { fileSize: 10 * 1024 * 1024 }
 });
 const handler = (action, status = 200) => async (req, res, next) => { try {
